@@ -280,10 +280,11 @@ void setup() {
 
 void loop() {
 
+  //Servo Control
   unsigned long currentMillis1 = millis();
   unsigned long currentMillis2 = millis();
   
-    
+  //1st Servo Motor  
   if (currentMillis1 - previousMillis2 >= interval3){
     if(servo1 == 1){
       if(servo_count1 < servo_seconds1){
@@ -294,7 +295,7 @@ void loop() {
     }
   }
   
-  
+  //2nd Servo Motor
   if (currentMillis2 - previousMillis2 >= interval3){
     if(servo2 == 1){
       if(servo_count2 < servo_seconds2){
@@ -304,7 +305,9 @@ void loop() {
      }
     previousMillis2 = currentMillis2;
   }
-  // put your main code here, to run repeatedly:
+
+  //Multiplexer Codes -------------------------------
+  
   digitalWrite(latchPin,1);
   //set it to 1 to collect parallel data, wait
   delayMicroseconds(20);
@@ -320,6 +323,7 @@ void loop() {
   switchVar2 = shiftIn(dataPin, clockPin);
   old_switchVar2 &= switchVar2; // detect the rising edges of the buttons.
 
+  //Bluetooth
   if(Serial.available()){
     x = Serial.readString();
   }
@@ -331,6 +335,7 @@ void loop() {
   if(old_switchVar2&8){
     led_control(8);
   }
+  
   //First Machine (x, y, a, b, c, d)
   //start button for ready timer M1
   if(old_switchVar2&1)
@@ -444,7 +449,8 @@ void led_control(byte led_switch){
         led_val2 = 0;
       }
   }
-  
+  Serial.println("led val1: " + String(led_val1));
+  Serial.println("led val2: " + String(led_val2));
   led_val_total = led_val1 + led_val2 + 64;
   
   digitalWrite(latch1,LOW);
