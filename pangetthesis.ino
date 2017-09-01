@@ -16,6 +16,10 @@ int servo2 = 0;
 int cnt1 = 0;
 int cnt2 = 3;
 
+
+int cntr1 = 0;
+int cntr2 = 0;
+
 unsigned long previousMillis1, previousMillis2;
 const long interval3 = 1000;
 
@@ -58,7 +62,9 @@ public:
       if (currentMillis - previousMillis >= interval1) 
       {
         previousMillis = currentMillis;
-        
+        if(cntr1 == 1){
+          send_time1();
+        }
         digitalWrite(_motor_pin, HIGH);
         if (GetTotalSeconds()>0)
         {
@@ -148,6 +154,18 @@ public:
     LiquidCrystal::clear();
     LiquidCrystal::print(buffer);
   };
+  void send_time1(){
+    String time1 = String(minTens) + String(minOnes) + ":" + String(secTens) + String(secOnes);
+    Serial.print(time1);
+  }
+  void Reset(){
+    minTens = 0;
+    minOnes = 0;
+    secTens = 0;
+    secOnes = 0;
+    _cursor = 0;
+    Refresh(true);
+  };
   void Left(void)
   {
     if (_cursor>0)
@@ -227,8 +245,6 @@ const int dataPin = 9;
 const int clockPin = 7;
 const int motor1 = 4;
 const int motor2 = 3;
-int cntr1 = 0;
-int cntr2 = 0;
 String x;
 
 //shift registers
@@ -289,7 +305,7 @@ void loop() {
     if(servo1 == 1){
       if(servo_count1 < servo_seconds1){
         servo_count1++; 
-        Serial.println("servo_count1: " + String(servo_count1));
+        //Serial.println("servo_count1: " + String(servo_count1));
       }
     previousMillis1 = currentMillis1;
     }
@@ -300,7 +316,7 @@ void loop() {
     if(servo2 == 1){
       if(servo_count2 < servo_seconds2){
         servo_count2++; 
-        Serial.println("servo_count2: " + String(servo_count2));
+        //Serial.println("servo_count2: " + String(servo_count2));
       }
      }
     previousMillis2 = currentMillis2;
@@ -328,22 +344,33 @@ void loop() {
     x = Serial.readString();
   }
 
-  if(old_switchVar2&4){
+  if(old_switchVar2&4  || x.equalsIgnoreCase("valve1")){
     led_control(4);
   }
 
-  if(old_switchVar2&8){
+  if(old_switchVar2&8  || x.equalsIgnoreCase("valve2")){
     led_control(8);
   }
-  
+
+  if(old_switchVar2&16 || x.equalsIgnoreCase("cancel1")){
+    machine1.Reset();
+  }
+
+  if(old_switchVar2&32 || x.equalsIgnoreCase("cancel2")){
+    machine2.Reset();
+  }
   //First Machine (x, y, a, b, c, d)
   //start button for ready timer M1
-  if(old_switchVar2&1)
+  if(old_switchVar2&1 || x.equalsIgnoreCase("start1"))
   {
     cntr1+=1;
-    delay(1000);
   }
-      if(cntr1 == 1 || x.equalsIgnoreCase("start1"))
+  
+  if(x.equalsIgnoreCase("stop1")){
+    cntr1 = 0;
+  }
+  
+      if(cntr1 == 1)
       {
         if(cnt1 != 0){
           servo1 = 1;
@@ -355,7 +382,7 @@ void loop() {
         machine1.SetState(true);
         x = "";
       }
-      else if (cntr1 != 1 || x.equalsIgnoreCase("stop1"))
+      else if (cntr1 != 1)
       {
         cntr1 = 0;
         servo1 = 0;
@@ -383,7 +410,7 @@ void loop() {
 
   //Second Machine (z, w, e, f, g, h)
   //start button for ready timer M2
-  
+
   if(old_switchVar2&2)
   {
     cntr2+=1;
@@ -449,8 +476,8 @@ void led_control(byte led_switch){
         led_val2 = 0;
       }
   }
-  Serial.println("led val1: " + String(led_val1));
-  Serial.println("led val2: " + String(led_val2));
+  //Serial.println("led val1: " + String(led_val1));
+  //Serial.println("led val2: " + String(led_val2));
   led_val_total = led_val1 + led_val2 + 64;
   
   digitalWrite(latch1,LOW);
