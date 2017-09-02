@@ -20,8 +20,9 @@ int cnt2 = 3;
 int cntr1 = 0;
 int cntr2 = 0;
 
-unsigned long previousMillis1, previousMillis2;
-const long interval3 = 1000;
+unsigned long previousMillis_servo, previousMillis_time;
+const long interval_servo = 1000;
+const long interval_time = 900;
 
 class FlourMachine : public LiquidCrystal {
 private:
@@ -62,9 +63,6 @@ public:
       if (currentMillis - previousMillis >= interval1) 
       {
         previousMillis = currentMillis;
-        if(cntr1 == 1){
-          send_time1();
-        }
         digitalWrite(_motor_pin, HIGH);
         if (GetTotalSeconds()>0)
         {
@@ -154,9 +152,9 @@ public:
     LiquidCrystal::clear();
     LiquidCrystal::print(buffer);
   };
-  void send_time1(){
-    String time1 = String(minTens) + String(minOnes) + ":" + String(secTens) + String(secOnes);
-    Serial.print(time1);
+  void send_time(){
+    String _time = String(minTens) + String(minOnes) + ":" + String(secTens) + String(secOnes);
+    Serial.print(_time);
   }
   void Reset(){
     minTens = 0;
@@ -257,6 +255,9 @@ int led_val1 = 0;
 int led_val2 = 0;
 int led_val_total = 0;
 
+int mach_ctr = 0;
+int dis_mach = 0;
+
 //multiplexers
 byte switchVar = 72; //01001000
 byte switchVar2 = 159; //10011111
@@ -297,33 +298,33 @@ void setup() {
 void loop() {
 
   //Servo Control
-  unsigned long currentMillis1 = millis();
-  unsigned long currentMillis2 = millis();
+  unsigned long currentMillis_servo = millis();
+  unsigned long currentMillis_time = millis();
   
   //1st Servo Motor  
-  if (currentMillis1 - previousMillis2 >= interval3){
+  if (currentMillis_servo - previousMillis_servo >= interval_servo){
     if(servo1 == 1){
       if(servo_count1 < servo_seconds1){
-        servo_count1++; 
-        //Serial.println("servo_count1: " + String(servo_count1));
+        servo_count1++;
       }
-    previousMillis1 = currentMillis1;
-    }
-  }
-  
-  //2nd Servo Motor
-  if (currentMillis2 - previousMillis2 >= interval3){
-    if(servo2 == 1){
+    } else if(servo2 == 1){
       if(servo_count2 < servo_seconds2){
-        servo_count2++; 
-        //Serial.println("servo_count2: " + String(servo_count2));
+        servo_count2++;
       }
-     }
-    previousMillis2 = currentMillis2;
+    }
+    previousMillis_servo = currentMillis_servo;
   }
 
-  //Multiplexer Codes -------------------------------
+  if(currentMillis_time - previousMillis_time >= interval_time){
+    if(cntr1 == 1){
+      machine1.send_time();
+    } else if(cntr2 == 1){
+      machine2.send_time();
+    }
+    previousMillis_time = currentMillis_time;
+  }
   
+  //Multiplexer Codes -------------------------------
   digitalWrite(latchPin,1);
   //set it to 1 to collect parallel data, wait
   delayMicroseconds(20);
@@ -344,116 +345,218 @@ void loop() {
     x = Serial.readString();
   }
 
-  if(old_switchVar2&4  || x.equalsIgnoreCase("valve1")){
-    led_control(4);
+  if(x.equalsIgnoreCase("m1")){
+    mach_ctr = 1;
+    dis_mach = 1;
+  } else if(x.equalsIgnoreCase("m2")){
+    mach_ctr = 2;
+    dis_mach = 2;
   }
 
-  if(old_switchVar2&8  || x.equalsIgnoreCase("valve2")){
-    led_control(8);
+  if(x.equalsIgnoreCase("r_m1")){
+    mach_ctr = 0;
+    dis_mach = 0;
+  } else if(x.equalsIgnoreCase("r_m2")){
+    mach_ctr = 0;
+    dis_mach = 0;
   }
 
-  if(old_switchVar2&16 || x.equalsIgnoreCase("cancel1")){
-    machine1.Reset();
-  }
-
-  if(old_switchVar2&32 || x.equalsIgnoreCase("cancel2")){
-    machine2.Reset();
-  }
   //First Machine (x, y, a, b, c, d)
   //start button for ready timer M1
-  if(old_switchVar2&1 || x.equalsIgnoreCase("start1"))
-  {
-    cntr1+=1;
+  if(mach_ctr == 1){
+    if(x.equalsIgnoreCase("valve1")){
+      led_control(4);
+    }
+  
+    if(x.equalsIgnoreCase("cancel1")){
+      machine1.Reset();
+    }
+  
+    if(x.equalsIgnoreCase("r_led1")){
+      led_reset(1);    
+    }
+  
+    if(x.equalsIgnoreCase("start1"))
+    {
+      cntr1+=1;
+    }
+    
+    if(x.equalsIgnoreCase("stop1")){
+      cntr1 = 0;
+    }
+    if(cntr1 == 1){
+      if(cnt1 != 0){
+        servo1 = 1;
+        servo_control1();
+      }
+      machine1.SetState(true);
+      x = "";
+    } else if (cntr1 != 1){
+      cntr1 = 0;
+      servo1 = 0;
+      machine1.SetState(false);
+      servo_count1 = 0;
+      myservo1.write(0);
+      
+      if (x.equalsIgnoreCase("left1"))
+      {
+        machine1.Left(); 
+      }
+      if (x.equalsIgnoreCase("right1"))
+      {
+        machine1.Right(); 
+      }
+      if (x.equalsIgnoreCase("up1"))
+      {
+        machine1.Up(); 
+      }
+      if (x.equalsIgnoreCase("down1"))
+      {
+        machine1.Down();  
+      }
+    }
   }
   
-  if(x.equalsIgnoreCase("stop1")){
-    cntr1 = 0;
+  if(dis_mach != 1){
+    if(old_switchVar2&4){
+      led_control(4);
+    }
+  
+    if(old_switchVar2&16){
+      machine1.Reset();
+    }
+  
+    if(old_switchVar2&1){
+      cntr1+=1;
+    }
+    
+    if(cntr1 == 1){
+      if(cnt1 != 0){
+        servo1 = 1;
+        servo_control1();
+      }
+      machine1.SetState(true);
+      x = "";
+    } else if (cntr1 != 1){
+      cntr1 = 0;
+      servo1 = 0;
+      machine1.SetState(false);
+      servo_count1 = 0;
+      myservo1.write(0);
+      
+      if (old_switchVar&1){
+        machine1.Left(); 
+      }
+      if (old_switchVar&2){
+        machine1.Right(); 
+      }
+      if (old_switchVar&4){
+        machine1.Up(); 
+      }
+      if (old_switchVar&8){
+        machine1.Down();  
+      }
+    }
   }
   
-      if(cntr1 == 1)
-      {
-        if(cnt1 != 0){
-          servo1 = 1;
-          servo_control1();
-          //Serial.println("servo pour flour1!");
-        }
-        //Serial.println("Servo_ctr1: " + String(servo_ctr1));
-        //Serial.println("Servo_count1: " + String(servo_count1));
-        machine1.SetState(true);
-        x = "";
-      }
-      else if (cntr1 != 1)
-      {
-        cntr1 = 0;
-        servo1 = 0;
-        machine1.SetState(false);
-        servo_count1 = 0;
-        myservo1.write(0);
-        
-        if (old_switchVar&1 || x.equalsIgnoreCase("left1"))
-        {
-          machine1.Left(); 
-        }
-        if (old_switchVar&2 || x.equalsIgnoreCase("right1"))
-        {
-          machine1.Right(); 
-        }
-        if (old_switchVar&4 || x.equalsIgnoreCase("up1"))
-        {
-          machine1.Up(); 
-        }
-        if (old_switchVar&8 || x.equalsIgnoreCase("down1"))
-        {
-          machine1.Down();  
-        }
-      }
-
   //Second Machine (z, w, e, f, g, h)
   //start button for ready timer M2
-
-  if(old_switchVar2&2)
-  {
-    cntr2+=1;
-    delay(1000);
-  }
-    if(cntr2 == 1 || x.equalsIgnoreCase("start2"))
+  if(mach_ctr == 2){
+    if(x.equalsIgnoreCase("valve2")){
+      led_control(8);
+    }
+  
+    if(x.equalsIgnoreCase("cancel2")){
+      machine2.Reset();
+    }
+  
+    if(x.equalsIgnoreCase("start2"))
     {
-      if(cnt2 != 3){
+      cntr2+=1;
+    }
+
+    if(x.equalsIgnoreCase("r_led2")){
+      led_reset(2);    
+    }
+    
+    if(x.equalsIgnoreCase("stop2")){
+      cntr2 = 0;
+    }
+    if(cntr2 == 1){
+      if(cnt2 != 0){
         servo2 = 1;
         servo_control2();
-        //Serial.println("servo pour flour2!");
       }
-      //Serial.println("Servo_ctr2: " + String(servo_ctr2));
-      //Serial.println("Servo_count2: " + String(servo_count2));
       machine2.SetState(true);
       x = "";
-    }
-    else if(cntr2 !=1 || x.equalsIgnoreCase("stop2"))
-    {
+    } else if (cntr2 != 1){
       cntr2 = 0;
       servo2 = 0;
       machine2.SetState(false);
       servo_count2 = 0;
       myservo2.write(0);
       
-      if (old_switchVar&0x10 || x.equalsIgnoreCase("left2"))
-      {
+      if (x.equalsIgnoreCase("left2")){
+        machine2.Left(); 
+      }
+      if (x.equalsIgnoreCase("right2")){
+        machine2.Right(); 
+      }
+      if (x.equalsIgnoreCase("up2")){
+        machine2.Up(); 
+      }
+      if (x.equalsIgnoreCase("down2")){
+        machine2.Down();
+      }
+    }
+  }
+  
+  if(dis_mach != 2){
+    if(old_switchVar2&8){
+      led_control(8);
+    }
+  
+    if(old_switchVar2&32){
+      machine2.Reset();
+    }
+  
+    if(old_switchVar2&32){
+      machine2.Reset();
+    }
+    
+    if(old_switchVar2&2){
+      cntr2+=1;
+    }
+  
+    if(cntr2 == 1) {
+      if(cnt2 != 3){
+        servo2 = 1;
+        servo_control2();
+      }
+      machine2.SetState(true);
+      x = "";
+    } else if(cntr2 !=1){
+      cntr2 = 0;
+      servo2 = 0;
+      machine2.SetState(false);
+      servo_count2 = 0;
+      myservo2.write(0);
+      
+      if (old_switchVar&0x10){
         machine2.Left();  
       }
-      if (old_switchVar&0x20 || x.equalsIgnoreCase("right2"))
-      {
+      if (old_switchVar&0x20){
         machine2.Right();  
       }
-      if (old_switchVar&0x40 || x.equalsIgnoreCase("up2"))
-      {
+      if (old_switchVar&0x40){
         machine2.Up();  
       }
-      if (old_switchVar&0x80 || x.equalsIgnoreCase("down2"))
-      {
+      if (old_switchVar&0x80){
         machine2.Down();  
       }
     }
-    x = "";
+  }
+  x = "";
 }
 
 //LED Controls
@@ -476,10 +579,23 @@ void led_control(byte led_switch){
         led_val2 = 0;
       }
   }
-  //Serial.println("led val1: " + String(led_val1));
-  //Serial.println("led val2: " + String(led_val2));
   led_val_total = led_val1 + led_val2 + 64;
   
+  digitalWrite(latch1,LOW);
+  shiftOut(data1,clk1,MSBFIRST,led_val_total);
+  digitalWrite(latch1,HIGH);
+}
+
+void led_reset(int m){
+  if(m == 1){
+    cnt1 = 0;
+    led_val1 = 0;
+    led_val_total = led_val1 + led_val2 + 64;
+  } else if(m == 2){
+    cnt2 = 3;
+    led_val2 = 0;
+    led_val_total = led_val1 + led_val2 + 64;
+  }
   digitalWrite(latch1,LOW);
   shiftOut(data1,clk1,MSBFIRST,led_val_total);
   digitalWrite(latch1,HIGH);
@@ -489,16 +605,12 @@ void led_control(byte led_switch){
 void servo_control1(){
   if(servo_count1 == 5){
     if(servo_ctr1 == 1){
-      //Serial.println("position: 180");
-      //delay(1000);
       myservo1.write(140);
       servo_ctr1 = 0;
       servo_count1 = 0;
     } else if(servo_ctr1 == 0){
       servo_ctr1 = 1;
       servo_count1 = 0;
-      //Serial.println("position: 0");
-      //delay(1000);
       myservo1.write(0);
       cnt1--;
     
@@ -515,16 +627,12 @@ void servo_control1(){
 void servo_control2(){
   if(servo_count2 == 5){
     if(servo_ctr2 == 1){
-      //Serial.println("position: 180");
-      //delay(1000);
       myservo2.write(140);
       servo_ctr2 = 0;
       servo_count2 = 0;
     } else if(servo_ctr2 == 0){
       servo_ctr2 = 1;
       servo_count2 = 0;
-      //Serial.println("position: 0");
-      //delay(1000);
       myservo2.write(0);
       cnt2--;
       
