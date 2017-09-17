@@ -1,5 +1,7 @@
 #include <LiquidCrystal.h>
 #include <Servo.h>
+
+//Servo
 Servo myservo1;
 Servo myservo2;
 
@@ -13,17 +15,20 @@ int servo_ctr2 = 1;
 int servo_seconds2 = 5;
 int servo2 = 0;
 
+// LED Array 
 int cnt1 = 0;
 int cnt2 = 3;
 
-
+//Start Counter
 int cntr1 = 0;
 int cntr2 = 0;
 
+//Intervals
 unsigned long previousMillis_servo, previousMillis_time;
 const long interval_servo = 1000;
 const long interval_time = 900;
 
+// Main Timer ------------------------------------------
 class FlourMachine : public LiquidCrystal {
 private:
   uint8_t _motor_pin;
@@ -124,6 +129,7 @@ public:
      TotalSeconds += secOnes + 10*secTens; 
      return TotalSeconds;
   }
+  
   void Refresh(boolean cursorON)
   {
     if (cursorON && _blink)
@@ -152,10 +158,13 @@ public:
     LiquidCrystal::clear();
     LiquidCrystal::print(buffer);
   };
+  
   void send_time(){
     String _time = String(minTens) + String(minOnes) + ":" + String(secTens) + String(secOnes);
     Serial.print(_time);
-  }
+  };
+
+  // Reset Method ------------------------------------
   void Reset(){
     minTens = 0;
     minOnes = 0;
@@ -163,7 +172,16 @@ public:
     secOnes = 0;
     _cursor = 0;
     Refresh(true);
+    
+    if(cntr1 == 1){
+      cntr1 = 0;
+    } else if(cntr2 == 1){
+      cntr2 = 0;
+    }
+    
   };
+
+  // Control Buttons ----------------------------------
   void Left(void)
   {
     if (_cursor>0)
@@ -182,7 +200,7 @@ public:
   {
     switch (_cursor) {
     case 0:
-      if (minTens<9)
+      if (minTens<2)
         minTens++;
       else
         minTens=0;
@@ -214,7 +232,7 @@ public:
       if (minTens>0)
         minTens--;
       else
-        minTens=9;
+        minTens=2;
       break;
     case 1:
       if (minOnes>0)
@@ -238,35 +256,44 @@ public:
   };
 };
 
+// Declaration of Variables -------------------------------
+
+//multiplexers
 const int latchPin = 8;
 const int dataPin = 9;
 const int clockPin = 7;
+byte switchVar = 72; //01001000
+byte switchVar2 = 159; //10011111
+
+//Motors
 const int motor1 = 4;
 const int motor2 = 3;
+
+//Bluetooth
 String x;
 
-//shift registers
+//Shift Registers
 int data1=12;
 int clk1=11;
 int latch1=10;
 
-int led_bit[] = {1,2,4,8,16,32};
+// LED 
+int led_bit[] = {2,4,8,16,32,64};
 int led_val1 = 0;
 int led_val2 = 0;
 int led_val_total = 0;
 
-int mach_ctr = 0;
-int dis_mach = 0;
+int mach_ctr = 0; // machine_control
+int dis_mach = 0; // disabled_machine
 
-//multiplexers
-byte switchVar = 72; //01001000
-byte switchVar2 = 159; //10011111
+// LCD
+FlourMachine machine1(motor1, 2, A4, A3, A2, A1, A0);
+FlourMachine machine2(motor2, 2, A5, A3, A2, A1, A0);
 
-FlourMachine machine1(motor1, 2, A5, A3, A2, A1, A0);
-FlourMachine machine2(motor2, 2, A4, A3, A2, A1, A0);
-
+ // Initializations ----------------------------------------
+ 
 void setup() {
-  // put your setup code here, to run once:
+  
   Serial.begin(9600);
   machine1.begin(16, 2);
   machine2.begin(16, 2);
@@ -290,18 +317,20 @@ void setup() {
   machine1.Refresh(false); //Update the display of machine1
   machine2.Refresh(false); //Update the display of machine2
 
+  //initialization of Shift Register
   digitalWrite(latch1,LOW);
-  shiftOut(data1,clk1,MSBFIRST,64);
+  shiftOut(data1,clk1,MSBFIRST,128);
   digitalWrite(latch1,HIGH);
 }
 
+// Main Function -------------------------------------------------
+
 void loop() {
 
-  //Servo Control
+  //Servo Controls
   unsigned long currentMillis_servo = millis();
   unsigned long currentMillis_time = millis();
-  
-  //1st Servo Motor  
+
   if (currentMillis_servo - previousMillis_servo >= interval_servo){
     if(servo1 == 1){
       if(servo_count1 < servo_seconds1){
@@ -314,11 +343,11 @@ void loop() {
     }
     previousMillis_servo = currentMillis_servo;
   }
-
+  
   if(currentMillis_time - previousMillis_time >= interval_time){
-    if(cntr1 == 1){
+    if(cntr1 == 1 && mach_ctr == 1 && dis_mach == 1){
       machine1.send_time();
-    } else if(cntr2 == 1){
+    } else if(cntr2 == 1 && mach_ctr == 2 && dis_mach == 2){
       machine2.send_time();
     }
     previousMillis_time = currentMillis_time;
@@ -340,9 +369,10 @@ void loop() {
   switchVar2 = shiftIn(dataPin, clockPin);
   old_switchVar2 &= switchVar2; // detect the rising edges of the buttons.
 
-  //Bluetooth
+  //Bluetooth --------------------------------------
   if(Serial.available()){
     x = Serial.readString();
+    //Serial.println(x);
   }
 
   if(x.equalsIgnoreCase("m1")){
@@ -361,7 +391,7 @@ void loop() {
     dis_mach = 0;
   }
 
-  //First Machine (x, y, a, b, c, d)
+  //First Machine (x, y, a, b, c, d) --------------
   //start button for ready timer M1
   if(mach_ctr == 1){
     if(x.equalsIgnoreCase("valve1")){
@@ -423,7 +453,7 @@ void loop() {
     }
   
     if(old_switchVar2&16){
-      machine1.Reset();
+      machine2.Reset();
     }
   
     if(old_switchVar2&1){
@@ -459,7 +489,7 @@ void loop() {
     }
   }
   
-  //Second Machine (z, w, e, f, g, h)
+  //Second Machine (z, w, e, f, g, h)---------------
   //start button for ready timer M2
   if(mach_ctr == 2){
     if(x.equalsIgnoreCase("valve2")){
@@ -517,7 +547,7 @@ void loop() {
     }
   
     if(old_switchVar2&32){
-      machine2.Reset();
+      machine1.Reset();
     }
   
     if(old_switchVar2&32){
@@ -559,7 +589,7 @@ void loop() {
   x = "";
 }
 
-//LED Controls
+//LED Controls ------------------------------------
 void led_control(byte led_switch){
   if(led_switch == 4){
     delay(500);
@@ -579,7 +609,7 @@ void led_control(byte led_switch){
         led_val2 = 0;
       }
   }
-  led_val_total = led_val1 + led_val2 + 64;
+  led_val_total = led_val1 + led_val2 + 128;
   
   digitalWrite(latch1,LOW);
   shiftOut(data1,clk1,MSBFIRST,led_val_total);
@@ -590,18 +620,18 @@ void led_reset(int m){
   if(m == 1){
     cnt1 = 0;
     led_val1 = 0;
-    led_val_total = led_val1 + led_val2 + 64;
+    led_val_total = led_val1 + led_val2 + 128;
   } else if(m == 2){
     cnt2 = 3;
     led_val2 = 0;
-    led_val_total = led_val1 + led_val2 + 64;
+    led_val_total = led_val1 + led_val2 + 128;
   }
   digitalWrite(latch1,LOW);
   shiftOut(data1,clk1,MSBFIRST,led_val_total);
   digitalWrite(latch1,HIGH);
 }
 
-//Servo Motor
+//Servo Motor Method -----------------------------
 void servo_control1(){
   if(servo_count1 == 5){
     if(servo_ctr1 == 1){
@@ -615,7 +645,7 @@ void servo_control1(){
       cnt1--;
     
       led_val1 = 0;
-      led_val_total = led_val1 + led_val2 + 64;
+      led_val_total = led_val1 + led_val2 + 128;
   
       digitalWrite(latch1,LOW);
       shiftOut(data1,clk1,MSBFIRST,led_val_total);
@@ -637,7 +667,7 @@ void servo_control2(){
       cnt2--;
       
       led_val2 = 0;
-      led_val_total = led_val1 + led_val2 + 64;
+      led_val_total = led_val1 + led_val2 + 128;
       
       digitalWrite(latch1,LOW);
       shiftOut(data1,clk1,MSBFIRST,led_val_total);
@@ -646,8 +676,7 @@ void servo_control2(){
   }
 }
 
-
-//to know what button you click.
+//to know what button you click ----------------------------
 byte shiftIn(int myDataPin, int myClockPin) { 
   int i;
   int temp = 0;
@@ -656,16 +685,6 @@ byte shiftIn(int myDataPin, int myClockPin) {
 
   pinMode(myClockPin, OUTPUT);
   pinMode(myDataPin, INPUT);
-
-//we will be holding the clock pin high 8 times (0,..,7) at the
-//end of each time through the for loop
-
-//at the begining of each loop when we set the clock low, it will
-//be doing the necessary low to high drop to cause the shift
-//register's DataPin to change state based on the value
-//of the next bit in its serial information flow.
-//The register transmits the information about the pins from pin 7 to pin 0
-//so that is why our function counts down
 
   for (i=7; i>=0; i--)
   {
@@ -678,21 +697,11 @@ byte shiftIn(int myDataPin, int myClockPin) {
       myDataIn = myDataIn | (1 << i);
     }
     else {
-      //turn it off -- only necessary for debuging
-     //print statement since myDataIn starts as 0
       pinState = 0;
     }
 
-    //Debuging print statements
-    //Serial.print(pinState);
-    //Serial.print("     ");
-    //Serial.println (dataIn, BIN);
-
     digitalWrite(myClockPin, 1);
-
   }
-  //debuging print statements whitespace
-  //Serial.println();
-  //Serial.println(myDataIn, BIN);
+  
   return myDataIn;
 }
