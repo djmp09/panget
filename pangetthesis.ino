@@ -7,12 +7,12 @@ Servo myservo2;
 
 int servo_count1 = 0;
 int servo_ctr1 = 1;
-int servo_seconds1 = 5;
+int servo_seconds1 = 15;
 int servo1 = 0;
 
 int servo_count2 = 0;
 int servo_ctr2 = 1;
-int servo_seconds2 = 5;
+int servo_seconds2 = 15;
 int servo2 = 0;
 
 // LED Array 
@@ -28,10 +28,14 @@ unsigned long previousMillis_servo, previousMillis_time;
 const long interval_servo = 1000;
 const long interval_time = 900;
 
+/*int onoff1 = 0;
+int onoff2 = 0;*/
+
 // Main Timer ------------------------------------------
 class FlourMachine : public LiquidCrystal {
 private:
   uint8_t _motor_pin;
+  int onoff = 0;
   uint8_t minTens, minOnes, secTens, secOnes;
   String buffer;
   unsigned long previousMillis;
@@ -68,7 +72,26 @@ public:
       if (currentMillis - previousMillis >= interval1) 
       {
         previousMillis = currentMillis;
-        digitalWrite(_motor_pin, HIGH);
+
+        if(onoff == 0){           
+          digitalWrite(_motor_pin, HIGH);
+          onoff = 1;
+        } else if(onoff == 1){
+          digitalWrite(_motor_pin, LOW);
+          onoff = 0;
+        }
+
+        /*if(cntr2 == 1){
+          if(onoff2 == 0){           
+            digitalWrite(_motor_pin, HIGH);
+            onoff2 = 1;
+          } else if(onoff2 == 1){
+            digitalWrite(_motor_pin, LOW);
+            onoff2 = 0;
+          }
+          Serial.println("shake2");
+        }*/
+        
         if (GetTotalSeconds()>0)
         {
           if (secOnes>0)
@@ -334,10 +357,16 @@ void loop() {
   if (currentMillis_servo - previousMillis_servo >= interval_servo){
     if(servo1 == 1){
       if(servo_count1 < servo_seconds1){
+        if(servo_count1 == 1){
+          myservo1.write(140);
+        }
         servo_count1++;
       }
     } else if(servo2 == 1){
       if(servo_count2 < servo_seconds2){
+        if(servo_count2 == 1){
+          myservo1.write(140);
+        }
         servo_count2++;
       }
     }
@@ -633,15 +662,15 @@ void led_reset(int m){
 
 //Servo Motor Method -----------------------------
 void servo_control1(){
-  if(servo_count1 == 5){
+  if(servo_count1 == servo_seconds1){
     if(servo_ctr1 == 1){
-      myservo1.write(140);
+      myservo1.write(0);
       servo_ctr1 = 0;
       servo_count1 = 0;
     } else if(servo_ctr1 == 0){
       servo_ctr1 = 1;
       servo_count1 = 0;
-      myservo1.write(0);
+      myservo1.write(140);
       cnt1--;
     
       led_val1 = 0;
@@ -655,15 +684,15 @@ void servo_control1(){
 }
 
 void servo_control2(){
-  if(servo_count2 == 5){
+  if(servo_count2 == servo_seconds2){
     if(servo_ctr2 == 1){
-      myservo2.write(140);
+      myservo2.write(0);
       servo_ctr2 = 0;
       servo_count2 = 0;
     } else if(servo_ctr2 == 0){
       servo_ctr2 = 1;
       servo_count2 = 0;
-      myservo2.write(0);
+      myservo2.write(140);
       cnt2--;
       
       led_val2 = 0;
